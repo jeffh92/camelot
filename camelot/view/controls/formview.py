@@ -39,7 +39,7 @@ from ...core.backend import get_root_backend
 from ...core.qt import QtCore, QtWidgets, Qt, is_deleted
 from ...core.serializable import NamedDataclassSerializable
 
-from ...core.item_model import ActionModeRole
+from ...core.item_model import ActionModeRole, CompletionPrefixRole
 from .. import gui_naming_context
 from camelot.core.item_model import VerboseIdentifierRole
 from camelot.view.controls.view import ViewWithActionsMixin
@@ -93,7 +93,6 @@ class FormEditors(QtCore.QObject):
         return widget_editor
 
     def create_label( self, field_name, editor, parent ):
-        from camelot.view.controls.editors.wideeditor import WideEditor
         widget_label = None
         if self._fields[field_name]['hide_title'] == False:
             widget_label = get_root_backend().create_field_label(
@@ -101,7 +100,7 @@ class FormEditors(QtCore.QObject):
                 parent
             )
             widget_label.setObjectName('%s_label'%field_name)
-            if not isinstance(editor, WideEditor):
+            if not editor.is_wide():
                 widget_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
             editor.set_label(widget_label)
         return widget_label
@@ -115,6 +114,7 @@ class FormDataWidgetMapper(QtWidgets.QDataWidgetMapper):
     def setItemDelegate(self, delegate):
         super().setItemDelegate(delegate)
         delegate.actionTriggered.connect(self.actionTriggered)
+        delegate.completionPrefixChanged.connect(self.completionPrefixChanged)
 
     @QtCore.qt_slot(list, object, QtWidgets.QWidget)
     def actionTriggered(self, action_route, mode, widget):
@@ -129,6 +129,18 @@ class FormDataWidgetMapper(QtWidgets.QDataWidgetMapper):
         index = model.index(self.currentIndex(), column)
         model.setData(index, json.dumps([action_route, mode]), ActionModeRole)
 
+    @QtCore.qt_slot(str, QtWidgets.QWidget)
+    def completionPrefixChanged(self, prefix, widget):
+        column = self.mappedSection(widget)
+        if column == -1:
+            return
+        model = self.model()
+        if model is None:
+            return
+        if is_deleted(model):
+            return
+        index = model.index(self.currentIndex(), column)
+        model.setData(index, prefix, CompletionPrefixRole)
 
 class FormWidget(QtWidgets.QWidget):
     """A form widget comes inside a form view"""
