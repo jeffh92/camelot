@@ -66,11 +66,9 @@ class PythonConnection(QtCore.QObject, metaclass=QSingleton):
     @classmethod
     def _execute_serialized_request(cls, serialized_request, response_handler):
         try:
-            response_handler.send_response(Busy(True))
             AbstractRequest.handle_request(
                 serialized_request, response_handler, response_handler
             )
-            response_handler.send_response(Busy(False))
         except Exception as e:
             LOGGER.error('Unhandled exception in model process', exc_info=e)
             import traceback
